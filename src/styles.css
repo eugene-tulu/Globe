@@ -177,7 +177,13 @@ body { background: #02040a; }
 .selection-chip button { width: 13px; height: 13px; padding: 0; border: 0; border-radius: 2px; background: transparent; color: #78c7ae; font-size: 13px; line-height: 11px; }
 .selection-chip button:hover { background: rgba(184, 246, 221, .14); color: #e0fff0; }
 .selection-more { color: #6b8c83; font: 9px 'DM Mono', monospace; }
-.boundary-map.is-selection-enabled .maplibregl-canvas { cursor: crosshair; }
+.dataset-preview-map { display: block; width: 100%; overflow: visible; background: #07151b; }
+.dataset-map-background { fill: #07151b; }
+.dataset-map-graticule { fill: none; stroke: rgba(115, 194, 174, .12); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.dataset-boundary { fill: rgba(69, 201, 174, .23); stroke: rgba(164, 243, 220, .85); stroke-width: 1.1; vector-effect: non-scaling-stroke; cursor: pointer; transition: fill .16s ease, stroke .16s ease; }
+.dataset-boundary:hover, .dataset-boundary.is-inspected { fill: rgba(134, 228, 202, .48); stroke: #d0ffec; }
+.dataset-boundary.is-selected { fill: rgba(134, 228, 202, .64); stroke: #e0fff0; stroke-width: 1.7; }
+.dataset-preview-map.is-selection-enabled .dataset-boundary { cursor: crosshair; }
 .map-selection-instruction { color: #80ad9f; }
 
 @media (max-width: 600px) { .boundary-picker { padding: 11px; }.picker-list { max-height: 185px; }.selection-mode button { font-size: 9px; }.selection-chip span { max-width: 135px; } }

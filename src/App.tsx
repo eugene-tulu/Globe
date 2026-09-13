@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { BoundaryMap } from './components/BoundaryMap'
 import { downloadCollection, getBoundaries, getBoundaryIndex, getCountries, getDataset } from './lib/api'
 import type {
   BoundaryCollection,
@@ -11,7 +12,6 @@ import type {
   SelectionMode,
 } from './types'
 
-const BoundaryMap = lazy(() => import('./components/BoundaryMap').then(({ BoundaryMap: component }) => ({ default: component })))
 const GlobeCanvas = lazy(() => import('./components/GlobeCanvas').then(({ GlobeCanvas: component }) => ({ default: component })))
 
 const levelLabels: Record<BoundaryLevel, { short: string; title: string }> = {
@@ -409,7 +409,7 @@ function App() {
                 <div className="preview-status"><span className={`status-dot ${loadingBoundaries ? 'is-loading' : ''}`} /> {loadingBoundaries ? 'Fetching geometry' : specificSelection ? 'Pick exact boundaries' : 'Live from API'}</div>
               </div>
               <div className="map-frame">
-                {previewCollection ? <Suspense fallback={<div className="map-loading"><span className="spinner" />Preparing preview</div>}><BoundaryMap collection={previewCollection} level={level} selectionEnabled={specificSelection} selectedIds={selectedBoundaryIds} onToggleBoundary={specificSelection ? toggleBoundaryFromMap : undefined} /></Suspense> : <div className="map-loading"><span className="spinner" />Waiting for the boundary layer</div>}
+                {previewCollection ? <BoundaryMap collection={previewCollection} level={level} selectionEnabled={specificSelection} selectedIds={selectedBoundaryIds} onToggleBoundary={specificSelection ? toggleBoundaryFromMap : undefined} /> : <div className="map-loading"><span className="spinner" />Waiting for the boundary layer</div>}
               </div>
               <div className="preview-footer">
                 <div><span className="footer-label">{specificSelection ? 'SELECTED FOR DOWNLOAD' : 'FEATURES IN VIEW'}</span><strong>{specificSelection ? formatNumber(selectedBoundaryIds.length) : wholeCollection ? formatNumber(wholeCollection.total) : '—'}</strong></div>
