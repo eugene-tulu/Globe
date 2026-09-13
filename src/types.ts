@@ -1,6 +1,7 @@
 export type BoundaryLevel = 0 | 1 | 2
 export type ExportFormat = 'geojson' | 'csv'
 export type Resolution = 'web' | 'balanced' | 'full'
+export type SelectionMode = 'all' | 'specific'
 
 export interface Country {
   name: string
@@ -29,6 +30,26 @@ export interface BoundaryCollection {
   limit: number
   offset: number
   format?: string
+}
+
+export interface BoundaryIndexItem {
+  id: string
+  code: number
+  name: string
+  country: string
+  country_code: number
+  parent_id: string | null
+  parent_name: string | null
+  bbox: [number, number, number, number]
+}
+
+export interface BoundaryIndexResponse {
+  level: BoundaryLevel
+  country: string
+  total: number
+  limit: number
+  offset: number
+  items: BoundaryIndexItem[]
 }
 
 export interface DatasetMetadata {

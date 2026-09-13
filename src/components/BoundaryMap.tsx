@@ -47,16 +47,57 @@ function featureName(feature: BoundaryFeature, level: BoundaryLevel): string {
   return 'Selected boundary'
 }
 
+function featureId(feature: BoundaryFeature): string | null {
+  return typeof feature.id === 'string' || typeof feature.id === 'number' ? String(feature.id) : null
+}
+
 interface BoundaryMapProps {
   collection: BoundaryCollection | null
   level: BoundaryLevel
+  selectionEnabled?: boolean
+  selectedIds?: readonly string[]
+  onToggleBoundary?: (feature: BoundaryFeature) => void
 }
 
-export function BoundaryMap({ collection, level }: BoundaryMapProps) {
+export function BoundaryMap({
+  collection,
+  level,
+  selectionEnabled = false,
+  selectedIds = [],
+  onToggleBoundary,
+}: BoundaryMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
+  const collectionRef = useRef<BoundaryCollection | null>(collection)
+  const selectionEnabledRef = useRef(selectionEnabled)
+  const selectedIdsRef = useRef(new Set(selectedIds))
+  const toggleBoundaryRef = useRef(onToggleBoundary)
+  const appliedSelectionRef = useRef(new Set<string>())
   const [selected, setSelected] = useState<string | null>(null)
   const [mapAvailable, setMapAvailable] = useState(true)
+
+  const applySelectionState = (map: MapLibreMap, ids: readonly string[]) => {
+    const next = new Set(ids)
+    for (const id of appliedSelectionRef.current) {
+      if (!next.has(id)) map.removeFeatureState({ source: 'boundaries', id }, 'selected')
+    }
+    for (const id of next) {
+      if (!appliedSelectionRef.current.has(id)) {
+        map.setFeatureState({ source: 'boundaries', id }, { selected: true })
+      }
+    }
+    appliedSelectionRef.current = next
+  }
+
+  useEffect(() => { collectionRef.current = collection }, [collection])
+  useEffect(() => { selectionEnabledRef.current = selectionEnabled }, [selectionEnabled])
+  useEffect(() => { toggleBoundaryRef.current = onToggleBoundary }, [onToggleBoundary])
+
+  useEffect(() => {
+    selectedIdsRef.current = new Set(selectedIds)
+    const map = mapRef.current
+    if (map?.isStyleLoaded() && map.getSource('boundaries')) applySelectionState(map, selectedIds)
+  }, [selectedIds])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -103,8 +144,8 @@ export function BoundaryMap({ collection, level }: BoundaryMapProps) {
         type: 'fill',
         source: 'boundaries',
         paint: {
-          'fill-color': '#45c9ae',
-          'fill-opacity': 0.21,
+          'fill-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#86e4ca', '#45c9ae'],
+          'fill-opacity': ['case', ['boolean', ['feature-state', 'selected'], false], 0.46, 0.21],
         },
       })
       map.addLayer({
@@ -112,22 +153,33 @@ export function BoundaryMap({ collection, level }: BoundaryMapProps) {
         type: 'line',
         source: 'boundaries',
         paint: {
-          'line-color': '#a4f3dc',
+          'line-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#d0ffec', '#a4f3dc'],
           'line-width': ['interpolate', ['linear'], ['zoom'], 0, 0.8, 5, 1.5, 9, 2.5],
           'line-opacity': 0.9,
         },
       })
       map.on('click', 'boundary-fill', (event: MapLayerMouseEvent) => {
         const feature = event.features?.[0] as BoundaryFeature | undefined
-        if (feature) setSelected(featureName(feature, level))
+        if (!feature) return
+        setSelected(featureName(feature, level))
+        if (selectionEnabledRef.current && featureId(feature)) toggleBoundaryRef.current?.(feature)
       })
       map.on('mouseenter', 'boundary-fill', () => { map.getCanvas().style.cursor = 'pointer' })
       map.on('mouseleave', 'boundary-fill', () => { map.getCanvas().style.cursor = '' })
+
+      const currentCollection = collectionRef.current
+      const source = map.getSource('boundaries') as GeoJSONSource | undefined
+      if (source && currentCollection) {
+        source.setData(currentCollection as never)
+        fitToCollection(map, currentCollection)
+      }
+      applySelectionState(map, [...selectedIdsRef.current])
     })
 
     return () => {
       map.remove()
       mapRef.current = null
+      appliedSelectionRef.current = new Set()
     }
   }, [level])
 
@@ -138,24 +190,29 @@ export function BoundaryMap({ collection, level }: BoundaryMapProps) {
     source?.setData(collection as never)
     fitToCollection(map, collection)
     setSelected(null)
+    applySelectionState(map, selectedIds)
   }, [collection])
 
   if (!mapAvailable) {
     return (
       <div className="map-shell map-fallback-shell">
         <div className="map-fallback-grid" />
-        <div className="map-fallback-copy"><span className="fallback-eyebrow"><span className="map-dot" /> GEOMETRY LOADED</span><strong>{collection?.features.length ?? 0} boundaries ready</strong><p>This browser does not expose WebGL2, so the interactive preview is paused. Your download is unaffected.</p></div>
+        <div className="map-fallback-copy"><span className="fallback-eyebrow"><span className="map-dot" /> GEOMETRY LOADED</span><strong>{collection?.features.length ?? 0} boundaries ready</strong><p>{selectionEnabled ? 'Use the list to choose exact boundaries. Your final download will include only that selection.' : 'This browser does not expose WebGL2, so the interactive preview is paused. Your download is unaffected.'}</p></div>
         <div className="map-overlay map-overlay-bottom">© FAO GAUL 2024 · preview geometry</div>
       </div>
     )
   }
+
+  const overlayText = selectionEnabled
+    ? `${selectedIds.length} selected · click a boundary to add or remove it`
+    : selected ?? 'Click a region to inspect it'
 
   return (
     <div className="map-shell">
       <div ref={containerRef} className="boundary-map" />
       <div className="map-overlay map-overlay-top">
         <span className="map-dot" />
-        <span>{selected ?? 'Click a region to inspect it'}</span>
+        <span>{overlayText}</span>
       </div>
       <div className="map-overlay map-overlay-bottom">© FAO GAUL 2024 · preview geometry</div>
     </div>

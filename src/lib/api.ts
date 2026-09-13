@@ -1,5 +1,6 @@
 import type {
   BoundaryCollection,
+  BoundaryIndexResponse,
   BoundaryLevel,
   Country,
   CountriesResponse,
@@ -30,20 +31,46 @@ export async function getBoundaries(
   country: string,
   level: BoundaryLevel,
   resolution: Resolution,
+  ids?: string[],
 ): Promise<BoundaryCollection> {
   const params = new URLSearchParams({
     country,
     level: String(level),
     format: 'geojson',
-    limit: '2000',
+    limit: String(ids?.length || 2000),
     offset: '0',
   })
+
+  if (ids?.length) params.set('ids', ids.join(','))
 
   if (resolution !== 'full') {
     params.set('simplify', resolution === 'web' ? '0.02' : '0.005')
   }
 
   return request<BoundaryCollection>(`/boundaries?${params.toString()}`)
+}
+
+interface BoundaryIndexOptions {
+  parentId?: string | null
+  query?: string
+  limit?: number
+  offset?: number
+}
+
+export async function getBoundaryIndex(
+  country: string,
+  level: Extract<BoundaryLevel, 1 | 2>,
+  { parentId, query, limit = 200, offset = 0 }: BoundaryIndexOptions = {},
+): Promise<BoundaryIndexResponse> {
+  const params = new URLSearchParams({
+    country,
+    level: String(level),
+    limit: String(limit),
+    offset: String(offset),
+  })
+  if (parentId) params.set('parent_id', parentId)
+  if (query?.trim()) params.set('q', query.trim())
+  return request<BoundaryIndexResponse>(`/boundary-index?${params.toString()}`)
 }
 
 function escapeCsv(value: unknown): string {

@@ -25,7 +25,9 @@ pnpm build
 
 - Quiet, space-set SVG globe hero built from open world-boundary data, with drag-to-spin, scroll zoom, gentle auto-rotation, and no WebGL requirement. It starts with a randomized constellation of visible country lights; clicking a country retires those idle lights, highlights only that country, and pre-fills the builder below.
 - Live country and dataset metadata from the API.
-- ADM 0, ADM 1, and ADM 2 selection.
+- ADM 0, ADM 1, and ADM 2 selection, with a whole-country or exact-place path for ADM 1 and ADM 2.
+- Searchable, multi-select region and district picker backed by a geometry-free boundary index; the map can toggle the same selection when WebGL is available.
+- Selected-boundary downloads fetch only the chosen IDs at the requested resolution, while the picker stays lightweight.
 - Web-ready, balanced, and full-detail geometry options.
 - GeoJSON and CSV attribute downloads.
 - MapLibre preview with a graceful non-WebGL fallback.
