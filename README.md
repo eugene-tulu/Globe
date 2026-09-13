@@ -21,6 +21,17 @@ VITE_API_BASE=http://localhost:8000 pnpm dev
 pnpm build
 ```
 
+## Cloudflare Workers deployment
+
+This project is configured as a static-assets Worker named `globe`. In Cloudflare Workers Builds, use:
+
+```text
+Build command:  pnpm run build
+Deploy command: pnpm exec wrangler deploy
+```
+
+`wrangler.toml` deploys Vite's `dist/` directory and provides an SPA fallback for client-side routes. The Worker name in the dashboard must remain `globe`.
+
 ## Current product slice
 
 - Quiet, space-set SVG globe hero built from open world-boundary data, with drag-to-spin, scroll zoom, gentle auto-rotation, and no WebGL requirement. It starts with a randomized constellation of visible country lights; clicking a country retires those idle lights, highlights only that country, and pre-fills the builder below.
