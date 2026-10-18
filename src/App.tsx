@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { BoundaryMap } from './components/BoundaryMap'
+import { track, trackDownload, trackPageView } from './lib/analytics'
 import { downloadCollection, getBoundaries, getBoundaryIndex, getCountries, getDataset, getDownloadFilename } from './lib/api'
 import type {
   BoundaryCollection,
@@ -95,6 +96,10 @@ function App() {
     () => getDownloadFilename(selectedCountry, level, format, specificSelection ? selectedBoundaries : []),
     [format, level, selectedBoundaries, selectedCountry, specificSelection],
   )
+
+  useEffect(() => {
+    trackPageView()
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -214,6 +219,17 @@ function App() {
 
   const toggleBoundary = (boundary: SelectedBoundary) => {
     setDownloaded(false)
+    const alreadySelected = selectedBoundaries.some((item) => item.id === boundary.id)
+    if (!alreadySelected) {
+      track('boundary_selected', {
+        boundary: boundary.name,
+        country: selectedCountry,
+        level,
+        parent: boundary.parent_name,
+        scope: 'specific_selection',
+        selectionCount: selectedBoundaries.length + 1,
+      })
+    }
     setSelectedBoundaries((current) => {
       const exists = current.some((item) => item.id === boundary.id)
       if (exists) return current.filter((item) => item.id !== boundary.id)
@@ -236,11 +252,22 @@ function App() {
   const download = () => {
     if (!downloadTarget) return
     downloadCollection(downloadTarget, selectedCountry, level, format, specificSelection ? selectedBoundaries : [])
+    trackDownload(
+      {
+        country: selectedCountry,
+        format,
+        level,
+        scope: specificSelection ? 'specific_selection' : 'entire_country',
+      },
+      specificSelection ? selectedBoundaries.length : downloadTarget.total,
+      specificSelection ? selectedBoundaries : [],
+    )
     setDownloaded(true)
   }
 
   const scrollToBuilder = () => document.getElementById('builder')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   const selectCountryFromGlobe = (country: string) => {
+    track('globe_country_selected', { country })
     setSelectedCountry(country)
     setGlobeSelectedCountry(country)
     setHasGlobeSelection(true)
@@ -249,6 +276,7 @@ function App() {
   }
 
   const changeCountry = (country: string) => {
+    track('builder_country_selected', { country })
     setSelectedCountry(country)
     setGlobeSelectedCountry(null)
     setSelectionMode('all')
@@ -256,6 +284,7 @@ function App() {
   }
 
   const changeLevel = (nextLevel: BoundaryLevel) => {
+    track('builder_level_selected', { level: nextLevel })
     setLevel(nextLevel)
     setSelectionMode('all')
     resetBoundarySelection()

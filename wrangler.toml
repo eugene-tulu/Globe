@@ -1,5 +1,13 @@
 name = "globe"
 compatibility_date = "2026-09-13"
+main = "src/worker.ts"
+
+[analytics]
+binding = "ANALYTICS_SQL"
+
+[[analytics_engine_datasets]]
+binding = "GLOBE_EVENTS"
+dataset = "globe_product_events"
 
 [assets]
 directory = "./dist"
