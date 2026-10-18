@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { BoundaryMap } from './components/BoundaryMap'
-import { downloadCollection, getBoundaries, getBoundaryIndex, getCountries, getDataset } from './lib/api'
+import { downloadCollection, getBoundaries, getBoundaryIndex, getCountries, getDataset, getDownloadFilename } from './lib/api'
 import type {
   BoundaryCollection,
   BoundaryFeature,
@@ -91,6 +91,10 @@ function App() {
   const previewCollection = specificSelection ? pickerCollection : wholeCollection
   const downloadTarget = specificSelection ? selectedCollection : wholeCollection
   const loadingBoundaries = loadingWhole || loadingPicker || loadingSelection
+  const downloadFilename = useMemo(
+    () => getDownloadFilename(selectedCountry, level, format, specificSelection ? selectedBoundaries : []),
+    [format, level, selectedBoundaries, selectedCountry, specificSelection],
+  )
 
   useEffect(() => {
     let active = true
@@ -231,7 +235,7 @@ function App() {
 
   const download = () => {
     if (!downloadTarget) return
-    downloadCollection(downloadTarget, selectedCountry, level, format)
+    downloadCollection(downloadTarget, selectedCountry, level, format, specificSelection ? selectedBoundaries : [])
     setDownloaded(true)
   }
 
@@ -400,6 +404,7 @@ function App() {
               <button className="download-button" onClick={download} disabled={!downloadTarget || loadingBoundaries || (specificSelection && !selectedBoundaryIds.length)}>
                 {downloadLabel}
               </button>
+              <p className="export-filename">Saves as <code>{downloadFilename}</code></p>
               <p className="license-note">{specificSelection ? `${selectedBoundaryIds.length || 'No'} selected · ` : ''}Free preview · attribution included · GAUL 2024 terms apply</p>
             </aside>
 

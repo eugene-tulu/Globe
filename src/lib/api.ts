@@ -8,6 +8,11 @@ import type {
   Resolution,
 } from '../types'
 
+export interface DownloadBoundaryName {
+  name: string
+  parent_name?: string | null
+}
+
 export const API_BASE = (import.meta.env.VITE_API_BASE ?? 'https://gaul.trigis.space').replace(/\/$/, '')
 
 async function request<T>(path: string): Promise<T> {
@@ -88,13 +93,61 @@ export function toCsv(collection: BoundaryCollection): string {
   return `${rows.join('\n')}\n`
 }
 
+function filenameSlug(value: string): string {
+  const slug = value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return slug || 'boundary'
+}
+
+function levelNoun(level: BoundaryLevel, count: number): string {
+  const noun = level === 0 ? 'country' : level === 1 ? 'region' : 'district'
+  return count === 1 ? noun : `${noun}s`
+}
+
+/**
+ * Keeps an exported file useful after it leaves Globe. Selected boundaries are
+ * named explicitly; complete layers stay concise and communicate their scope.
+ */
+export function getDownloadFilename(
+  country: string,
+  level: BoundaryLevel,
+  format: 'geojson' | 'csv',
+  selectedBoundaries: readonly DownloadBoundaryName[] = [],
+): string {
+  const prefix = `${filenameSlug(country)}-adm${level}`
+  const extension = format === 'geojson' ? 'geojson' : 'csv'
+
+  if (!selectedBoundaries.length) {
+    const scope = level === 0 ? 'country' : `all-${levelNoun(level, 2)}`
+    return `${prefix}-${scope}.${extension}`
+  }
+
+  const selectedNames = selectedBoundaries.map((boundary) => {
+    const names = level === 2 && boundary.parent_name
+      ? [boundary.parent_name, boundary.name]
+      : [boundary.name]
+    return names.map(filenameSlug).join('-')
+  })
+
+  if (selectedNames.length <= 3) {
+    return `${prefix}-${selectedNames.join('-')}.${extension}`
+  }
+
+  return `${prefix}-${selectedNames.slice(0, 2).join('-')}-and-${selectedNames.length - 2}-more-${levelNoun(level, selectedNames.length)}.${extension}`
+}
+
 export function downloadCollection(
   collection: BoundaryCollection,
   country: string,
   level: BoundaryLevel,
   format: 'geojson' | 'csv',
+  selectedBoundaries: readonly DownloadBoundaryName[] = [],
 ): void {
-  const filename = `${country.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-adm${level}.${format === 'geojson' ? 'geojson' : 'csv'}`
+  const filename = getDownloadFilename(country, level, format, selectedBoundaries)
   const body = format === 'geojson' ? JSON.stringify(collection, null, 2) : toCsv(collection)
   const mime = format === 'geojson' ? 'application/geo+json' : 'text/csv;charset=utf-8'
   const blob = new Blob([body], { type: mime })
