@@ -263,7 +263,6 @@ export function GlobeCanvas({ countries, selectedCountry, showAmbientHighlights,
     }
     dragRef.current.active = false
     pauseAndResume()
-    window.setTimeout(() => { dragRef.current.moved = false }, 0)
   }
 
   const handleWheel = (event: ReactWheelEvent<SVGSVGElement>) => {
@@ -273,7 +272,10 @@ export function GlobeCanvas({ countries, selectedCountry, showAmbientHighlights,
   }
 
   const handleCountrySelect = (country: string) => {
-    if (dragRef.current.moved) return
+    if (dragRef.current.moved) {
+      dragRef.current.moved = false
+      return
+    }
     onCountrySelect(country)
   }
 
