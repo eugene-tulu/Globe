@@ -4,6 +4,10 @@ interface AnalyticsEngineDataset {
   writeDataPoint(data: { blobs?: string[]; doubles?: number[]; indexes?: string[] }): void
 }
 
+interface KVNamespaceLike {
+  put(key: string, value: string): Promise<void>
+}
+
 interface AnalyticsSQLBinding {
   query<T>(request: { query: string; params?: Record<string, string | number> }): Promise<{ data: T[] }>
 }
@@ -15,6 +19,8 @@ interface AssetFetcher {
 interface Env {
   ANALYTICS_SQL: AnalyticsSQLBinding
   ASSETS: AssetFetcher
+  FEEDBACK_KV?: KVNamespaceLike
+  FEEDBACK_WEBHOOK_URL?: string
   GLOBE_EVENTS: AnalyticsEngineDataset
   METRICS_PASSWORD?: string
   METRICS_USERNAME?: string
@@ -70,8 +76,13 @@ function json(body: unknown, status = 200): Response {
   })
 }
 
-function safeText(value: unknown, limit = 120): string {
-  return typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, limit) : ''
+function safeText(value: unknown, limit = 120, preserveNewlines = false): string {
+  if (typeof value !== 'string') return ''
+  const normalized = preserveNewlines ? value.replace(/\r\n?/g, '\n') : value
+  const cleaned = preserveNewlines
+    ? normalized.replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, '').trim()
+    : normalized.replace(/[\u0000-\u001f\u007f]/g, '').trim()
+  return cleaned.slice(0, limit)
 }
 
 function safeLevel(value: unknown): string {
@@ -83,9 +94,13 @@ function safeCount(value: unknown): number {
 }
 
 function fixedTimeEqual(left: string, right: string): boolean {
-  if (left.length !== right.length) return false
-  let difference = 0
-  for (let index = 0; index < left.length; index += 1) difference |= left.charCodeAt(index) ^ right.charCodeAt(index)
+  const length = Math.max(left.length, right.length)
+  let difference = left.length ^ right.length
+  for (let index = 0; index < length; index += 1) {
+    const leftCode = index < left.length ? left.charCodeAt(index) : 0
+    const rightCode = index < right.length ? right.charCodeAt(index) : 0
+    difference |= leftCode ^ rightCode
+  }
   return difference === 0
 }
 
@@ -228,10 +243,54 @@ async function metricsSummary(request: Request, env: Env): Promise<Response> {
   }
 }
 
+async function receiveFeedback(request: Request, env: Env): Promise<Response> {
+  if (request.method !== 'POST') return new Response(null, { status: 405 })
+  const origin = request.headers.get('origin')
+  if (origin && origin !== new URL(request.url).origin) return new Response(null, { status: 403 })
+
+  let payload: { email?: unknown; message?: unknown; type?: unknown } = {}
+  try {
+    payload = await request.json() as typeof payload
+  } catch {
+    return json({ error: 'Invalid JSON' }, 400)
+  }
+
+  const email = safeText(payload.email, 200)
+  const message = safeText(payload.message, 2000, true)
+  const type = payload.type === 'feature' ? 'feature' : 'feedback'
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: 'Valid email required' }, 422)
+  if (message.length < 3) return json({ error: 'Message required' }, 422)
+
+  const record = JSON.stringify({ email, message, type, at: new Date().toISOString(), ua: safeText(request.headers.get('user-agent'), 200) })
+
+  let stored = false
+  if (env.FEEDBACK_KV) {
+    try {
+      await env.FEEDBACK_KV.put(`feedback:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`, record)
+      stored = true
+    } catch (error) {
+      console.error('KV put failed', error)
+    }
+  }
+
+  if (env.FEEDBACK_WEBHOOK_URL) {
+    try {
+      await fetch(env.FEEDBACK_WEBHOOK_URL, { body: record, headers: { 'content-type': 'application/json' }, method: 'POST' })
+      stored = true
+    } catch (error) {
+      console.error('Webhook failed', error)
+    }
+  }
+
+  if (!stored) return json({ error: 'Feedback storage not configured' }, 501)
+  return new Response(null, { status: 204 })
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContextLike): Promise<Response> {
     const url = new URL(request.url)
     if (url.pathname === '/__globe/events') return receiveEvent(request, env, ctx)
+    if (url.pathname === '/__globe/feedback') return receiveFeedback(request, env)
     if (url.pathname === '/__globe/metrics/summary') return metricsSummary(request, env)
     if (url.pathname === '/metrics' || url.pathname === '/metrics/') {
       const auth = authRequired(request, env)

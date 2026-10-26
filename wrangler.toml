@@ -12,3 +12,11 @@ dataset = "globe_product_events"
 [assets]
 directory = "./dist"
 not_found_handling = "single-page-application"
+
+# Feedback storage (optional). Create a KV namespace and paste its id below:
+# [[kv_namespaces]]
+# binding = "FEEDBACK_KV"
+# id = "YOUR_KV_NAMESPACE_ID"
+#
+# Or set a secret: wrangler secret put FEEDBACK_WEBHOOK_URL
+# (e.g. a Formspree/Zapier/email webhook URL)
