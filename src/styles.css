@@ -187,3 +187,16 @@ body { background: #02040a; }
 .map-selection-instruction { color: #80ad9f; }
 
 @media (max-width: 600px) { .boundary-picker { padding: 11px; }.picker-list { max-height: 185px; }.selection-mode button { font-size: 9px; }.selection-chip span { max-width: 135px; } }
+
+/* Feedback modal */
+.footer-actions { display: inline-flex; margin-left: 1rem; }
+.footer-link { background: none; border: 1px solid rgba(255,255,255,.25); color: inherit; padding: .35rem .7rem; border-radius: .4rem; cursor: pointer; font: inherit; font-size: .85rem; }
+.footer-link:hover { background: rgba(255,255,255,.08); }
+.feedback-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
+.feedback-modal { background: #121a33; color: #e6e9f2; border-radius: .75rem; padding: 1.5rem; width: min(480px, 100%); position: relative; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+.feedback-close { position: absolute; top: .5rem; right: .75rem; background: none; border: none; color: #e6e9f2; font-size: 1.5rem; cursor: pointer; }
+.feedback-form { display: flex; flex-direction: column; gap: .5rem; margin-top: .5rem; }
+.feedback-form input, .feedback-form select, .feedback-form textarea { background: #0b1020; color: #e6e9f2; border: 1px solid #2a3350; border-radius: .4rem; padding: .5rem; font: inherit; }
+.feedback-error { color: #ff6b6b; font-size: .85rem; }
+.feedback-success { color: #6bff9e; margin-top: 1rem; }
+.feedback-note { color: #9aa3c0; font-size: .9rem; }

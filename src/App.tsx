@@ -86,6 +86,12 @@ function App() {
   const [loadingIndex, setLoadingIndex] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [downloaded, setDownloaded] = useState(false)
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [feedbackEmail, setFeedbackEmail] = useState('')
+  const [feedbackType, setFeedbackType] = useState<'feedback' | 'feature'>('feedback')
+  const [feedbackMessage, setFeedbackMessage] = useState('')
+  const [feedbackStatus, setFeedbackStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [feedbackError, setFeedbackError] = useState<string | null>(null)
 
   const specificSelection = selectionMode === 'specific' && level > 0
   const selectedBoundaryIds = useMemo(() => selectedBoundaries.map((boundary) => boundary.id), [selectedBoundaries])
@@ -96,6 +102,28 @@ function App() {
     () => getDownloadFilename(selectedCountry, level, format, specificSelection ? selectedBoundaries : []),
     [format, level, selectedBoundaries, selectedCountry, specificSelection],
   )
+  const submitFeedback = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setFeedbackStatus('sending')
+    setFeedbackError(null)
+    try {
+      const response = await fetch('/__globe/feedback', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: feedbackEmail, message: feedbackMessage, type: feedbackType }),
+      })
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}))
+        throw new Error((body as { error?: string }).error || 'Could not send feedback')
+      }
+      setFeedbackStatus('sent')
+      setFeedbackEmail('')
+      setFeedbackMessage('')
+    } catch (err) {
+      setFeedbackStatus('error')
+      setFeedbackError(err instanceof Error ? err.message : 'Could not send feedback')
+    }
+  }
 
   useEffect(() => {
     trackPageView()
@@ -464,7 +492,37 @@ function App() {
         </section>
       </main>
 
-      <footer className="footer section-wrap"><div className="brand"><span className="brand-mark"><span /><span /><span /></span><span>GLOBE<span className="brand-sub">/ STUDIO</span></span></div><p>Administrative boundaries, made legible.</p><span className="footer-right">TRIGIS · {new Date().getFullYear()}</span></footer>
+      <footer className="footer section-wrap"><div className="brand"><span className="brand-mark"><span /><span /><span /></span><span>GLOBE<span className="brand-sub">/ STUDIO</span></span></div><p>Administrative boundaries, made legible.</p><div className="footer-actions"><button type="button" className="footer-link" onClick={() => { setFeedbackOpen(true); setFeedbackStatus('idle'); setFeedbackError(null) }}>Feedback / feature request</button></div><span className="footer-right">TRIGIS · {new Date().getFullYear()}</span></footer>
+
+      {feedbackOpen && (
+        <div className="feedback-overlay" role="dialog" aria-modal="true" aria-label="Feedback and feature requests" onClick={(e) => { if (e.target === e.currentTarget) setFeedbackOpen(false) }}>
+          <div className="feedback-modal">
+            <button type="button" className="feedback-close" onClick={() => setFeedbackOpen(false)} aria-label="Close">×</button>
+            <h3>Feedback &amp; feature requests</h3>
+            <p className="feedback-note">Tell us what you need. We read every message and reply by email.</p>
+            {feedbackStatus === 'sent' ? (
+              <div className="feedback-success-block">
+                <p className="feedback-success">Thanks! Your message was sent.</p>
+                <button type="button" className="nav-cta" onClick={() => setFeedbackOpen(false)}>Close</button>
+              </div>
+            ) : (
+              <form onSubmit={submitFeedback} className="feedback-form">
+                <label className="field-label" htmlFor="feedback-type">Type</label>
+                <select id="feedback-type" value={feedbackType} onChange={(e) => setFeedbackType(e.target.value as 'feedback' | 'feature')}>
+                  <option value="feedback">Feedback</option>
+                  <option value="feature">Feature request</option>
+                </select>
+                <label className="field-label" htmlFor="feedback-email">Email</label>
+                <input id="feedback-email" type="email" required value={feedbackEmail} onChange={(e) => setFeedbackEmail(e.target.value)} placeholder="you@example.com" />
+                <label className="field-label" htmlFor="feedback-message">Message</label>
+                <textarea id="feedback-message" required rows={4} value={feedbackMessage} onChange={(e) => setFeedbackMessage(e.target.value)} placeholder="What would make Globe more useful?" />
+                {feedbackError && <p className="feedback-error">{feedbackError}</p>}
+                <button type="submit" className="nav-cta" disabled={feedbackStatus === 'sending'}>{feedbackStatus === 'sending' ? 'Sending…' : 'Send'}</button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
